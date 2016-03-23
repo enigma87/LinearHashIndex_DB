@@ -16,13 +16,8 @@ public class LinearHash {
 	static {
 		try {
 			linHash = new LinearHash();
-			
-			/*
-			 *  LH is created  with init values
-			 *  now : persist
-			 */
 			linHash.saveState();
-		
+			
 		} catch (ClassNotFoundException | IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -34,9 +29,8 @@ public class LinearHash {
 		return linHash;
 	}
 	
-	private LinearHash() throws ClassNotFoundException, IOException {
-		
-		
+	
+ 	private LinearHash() throws ClassNotFoundException, IOException {
 		disk = new RandomAccess(Constant.DISK_PATH);
 		
 		try {
@@ -61,13 +55,11 @@ public class LinearHash {
 			index.put("M", Constant.M_INIT);
 			index.put("SP",Constant.SP_INIT);
 
-			ArrayList<Integer> pages = new ArrayList<Integer>();
-			index.put("pages", pages);
-			
-			for(int i =0; i < 2 * (int) index.get("M"); i++){
-				pages.add(-1);
+			ArrayList<Integer> chains = new ArrayList<Integer>();
+			for(int i =0; i < 2 * (int) Constant.M_INIT; i++){
+				chains.add(-1);
 			}
-			
+			index.put("chains", chains);
 		}
 	}
 			
@@ -79,15 +71,30 @@ public class LinearHash {
 	 int getSP() {
 		return (int) linHash.index.get("SP");
 	}
+	 
+	 List<Integer> getChains() {
+			return (List<Integer>) linHash.index.get("chains");
+		} 
 	
-	List<Integer> getChains() {
-		return (List<Integer>) linHash.index.get("pages");
-	}
+	 void setM(int M) throws IOException {
+		 index.put("M", M);
+		 saveState();
+	 }
+	 
+	 void setSP(int sp) throws IOException {
+		 index.put("SP", sp);
+		 saveState();
+	 }
+	 void setChains(ArrayList<Integer> chains) throws IOException {
+		 index.put("chains", chains);
+		 saveState();
+	 }
+	
 	 
 	public  int Hash(int record_key) {	
 		int m = record_key % getM();
-	
-		if (getM() < getSP()) {
+		int sp = getSP();
+		if (m < sp) {
 			m = record_key % (2 * getM());
 		}
 		return m;
@@ -96,8 +103,8 @@ public class LinearHash {
 	public  void InsertTuple(byte[] tuple) throws ClassNotFoundException, IOException {
 		byte [] key = Tuple.readKey(tuple);
 		int chain_no = Hash(Tuple.hash(key));
-		@SuppressWarnings("unchecked")
-		List<Integer> chains = (ArrayList<Integer>) linHash.index.get("pages");
+		
+		List<Integer> chains = (ArrayList<Integer>) linHash.getChains();
 		
 		int firstPageID = (int) chains.get(chain_no);
 
@@ -114,13 +121,13 @@ public class LinearHash {
 			 * record the state : persist
 			 */	
 			chains.set(chain_no, new Integer(new_pg_no));
-			this.saveState();
+			linHash.setChains((ArrayList<Integer>) chains);
 			
 			
 			firstPageID = new_pg_no;
 		} else {
 			
-			linHash.disk.readPage(pgBuf, firstPageID);
+			getDisk().readPage(pgBuf, firstPageID);
 			
 		}		
 		
@@ -147,19 +154,18 @@ public class LinearHash {
 		
 		LinearHash lHash = getLinHash();
 		
-/*		ArrayList<Integer> pages = (ArrayList<Integer>) index.get("pages");
-		System.out.println(LinearHash.getM() + " " +LinearHash.getSP()+ " " +  pages.get(3));
-		Serializer.fileSerialize(index, Constant.LH_SERIAL_PATH);
-*/
-		
-		String [] dnames = new String []{"finance","accounting", "pr", "crm", "operations", "sales", "marketing"};
-		String [] mnames = new String[] {"alberto", "bobo", "cassandra", "Dreyfus", "Eliza", "Fanny", "George"};
+		String [] dnames = new String []{"finance","acounting", "pr", "crm", "oions", "sales", "marketing","finance","accoung", "prod", "crmod", "opeions", "saasdes", "maasdking"};
+		String [] mnames = new String[] {"alberto", "bobo", "cassandra", "Dreyfus", "Eliza", "Fanny", "George","alberto", "bobo", "cassandra", "Dreyfus", "Eliza", "Fanny", "George"};
 		
 		
 		for (int i: Util.range(0, dnames.length, 1)) {	
 			byte [] tuple = new byte[Tuple.TUPLE_SIZE];
 			System.arraycopy(Util.rightPadChar(dnames[i], Tuple.DNAME_SIZE, Tuple.NAME_PAD).getBytes("UTF8"), 0, tuple, 0, Tuple.DNAME_SIZE);
 			System.arraycopy(Util.rightPadChar(mnames[i], Tuple.MNAME_SIZE, Tuple.NAME_PAD).getBytes("UTF8"), 0, tuple, Tuple.DNAME_SIZE, Tuple.MNAME_SIZE);
+			
+		//	lHash.setSP(1);
+			
+		//	System.out.print(Tuple.hash(Tuple.readKey(tuple)) + " " + lHash.Hash(Tuple.hash(Tuple.readKey(tuple))) + "\n");
 			
 			lHash.InsertTuple(tuple);
 
@@ -238,7 +244,7 @@ public class LinearHash {
 	
 	public static Double getAverageChainLength() {
 		int no_of_pages = 0;
-		List<Integer> chains = (List<Integer>) linHash.index.get("pages");
+		List<Integer> chains = (List<Integer>) linHash.getChains();
  		for (int i=0; i< chains.size();i++) {
 			if (-1 < chains.get(i)) {
 				byte [] firstPage = new byte[Page.PAGE_SIZE];
@@ -257,7 +263,5 @@ public class LinearHash {
 		int sP = linHash.getSP();
 		return M + sP;
 	}
-	
-	
 	
 }
