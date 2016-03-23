@@ -346,8 +346,6 @@ public class Page {
 			tuple = iter.getNext();
 		}
 		
-		
-		
 	}
 
 /*
