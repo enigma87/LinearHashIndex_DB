@@ -224,20 +224,26 @@ public class LinearHash {
 	 * 		writes back updated pageBuf to page on disk
 	 * 		returns the page number
 	 */
-	public static int getNewPageBuf(byte[] pageBuf) throws IOException {
+	public static int getNewPageBuf(byte[] pageBuf)  {
 		
 		if (Page.PAGE_SIZE > pageBuf.length) {
 			System.err.println("Buffer underflow for new page creation, ");
 			System.exit(0);
 		}
 		// allocate a new page on disk
-		int new_page_no = LinearHash.getDisk().allocatePage();
+		int new_page_no =-1;
+		try {
+			new_page_no = LinearHash.getDisk().allocatePage();
 		
 		//initialize the new page buffer with allocated page number and other header attr.
 		Page.initPageBuf(pageBuf, new_page_no);
 		
 		//write the page buf back to disk
 		LinearHash.getDisk().writePage(pageBuf, new_page_no);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		
 		return new_page_no;
 	}

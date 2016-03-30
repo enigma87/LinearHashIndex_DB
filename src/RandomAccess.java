@@ -102,6 +102,7 @@ public class RandomAccess {
 
 		 if (pageAllocated++ <= storageSize) { 
 			 Serializer.fileSerialize(pageAllocated, Constant.DISK_STATE);
+			 System.out.println("page allocated : " + pageAllocated);
 			 return pageAllocated;
 		 } 
 		 return -1;

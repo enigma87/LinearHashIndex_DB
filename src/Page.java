@@ -2,10 +2,11 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 public class Page {
 	
-	public final static int  PAGE_SIZE = 1024;
+	public final static int  PAGE_SIZE = 100;
 	public final static int HEADER_LEN = 14;
 	
 	public final static int MAX_TUPLES =  (2* (Page.PAGE_SIZE/Tuple.TUPLE_SIZE))/3;
@@ -271,7 +272,6 @@ public class Page {
 		 * 		after chain is split : increment sP, and save state
 		 * 				if sP > M then change: M  *= 2, sP = 0
 		 */
-		
 		LinearHash lh = LinearHash.getLinHash();
 		int sP = lh.getSP();
 		int M = lh.getM();
@@ -290,8 +290,13 @@ public class Page {
 		 * get the first page and de-link from the chain
 		 */
 		int first_pg_no = chains.get(sP);
-		LinearHash.getDisk().readPage(splitBuf, first_pg_no);
+		if  (-1 != first_pg_no) {
+			LinearHash.getDisk().readPage(splitBuf, first_pg_no);
+		} else {
+			Page.initPageBuf(splitBuf, -1);
+		}
 		chains.set(sP, -1);
+		
 		lh.setChains(chains); // persist the changes
 		
 		/*
@@ -309,46 +314,81 @@ public class Page {
 			 */
 			int new_chain_no = lh.Hash(Tuple.hash(Tuple.readKey(tuple)));
 			ADD_STATUS buf_full;
-			if (new_chain_no < lh.getSP()) {
+			if (new_chain_no == split_chain_no) {
 				
 				buf_full = _addTuple(buf1, tuple);
 				
 				if (ADD_STATUS.PAGE_FULL == buf_full) {
-					System.out.println("New page split, buff1 full");
+					System.out.println("New page split, buff1 full : add to : " + new_chain_no) ;
 					/*
 					 * save to disk, the buffer data 
 					 */
-					int pg_no = getPageNo(buf1);
-					LinearHash.getLinHash().getDisk().writePage(buf1, pg_no);
-					
-					AddPageToChain(new_chain_no, buf1);
-					buf1 = new byte[Page.PAGE_SIZE];
-					LinearHash.getNewPageBuf(buf1);
+					addBuffToChain(buf1, new_chain_no);
 				}
 			} else  {
+				
+				if (new_chain_no == 0) {
+					System.out.println("wtf");
+				}
 				
 				buf_full = _addTuple(buf2, tuple);
 				
 				if (ADD_STATUS.PAGE_FULL == buf_full) {
-					System.out.println("New page split, buff2 full");
+					System.out.println("New page split, buff2 full : add to : " + new_chain_no);
 					/*
 					 * save to disk, the buffer data 
 					 */
-					int pg_no = getPageNo(buf2);
-					LinearHash.getLinHash().getDisk().writePage(buf2, pg_no); 
-					
-					AddPageToChain(new_chain_no, buf2);
-					buf2 = new byte[Page.PAGE_SIZE];
-					LinearHash.getNewPageBuf(buf2);
+					addBuffToChain(buf2, new_chain_no);
 				}
 			}
 			
 			tuple = iter.getNext();
 		}
 		
-	}
+		if (getNoOfTuples(buf1) > 0) {
+			addBuffToChain(buf1, split_chain_no);
+		}
+		if (getNoOfTuples(buf2)> 0) {
+			addBuffToChain(buf2, lh.getM() + split_chain_no);
+		}
+	
 
+	/*
+	increase the size of linear hash, if SP > M -1
+	*/
+		if (lh.getSP() >= lh.getM() ) {
+			
+			lh.setM(M * Constant.M_INC);
+			lh.setSP(Constant.SP_INIT);
+			
+			for (int i = lh.getM(); i < lh.getM() * Constant.M_INC; i ++) {
+				chains.add(i, -1);
+				lh.setChains(chains); //persist every change
+			}
+		}
+		
+	}
 /*
+ * add buff to chain
+ */
+	
+	
+	
+private static void addBuffToChain(byte [] buf, int new_chain_no) throws IOException {
+	
+	int pg_no = getPageNo(buf);
+	LinearHash.getLinHash().getDisk().writePage(buf, pg_no); 
+	
+	AddPageToChain(new_chain_no, buf);
+	/*
+	 * erase buf after write to disk
+	 */
+	buf = new byte[Page.PAGE_SIZE];
+	LinearHash.getNewPageBuf(buf);
+}
+
+
+	/*
  * given a chain number and a byte buffer, 
  * copy the page number on the byte buffer to the chain's 
  * last page's next_page pointer
@@ -358,9 +398,12 @@ public class Page {
 		// get page number of buff
 		int new_pg_no = getPageNo(newPgBuf);
 		
+		if (LinearHash.getLinHash().getChains().get(new_chain_no ) == new_pg_no) return;
+		
 		//get first page of chain
 		int first_pg_no = LinearHash.getLinHash().getChains().get(new_chain_no);
 		byte [] first_page_buf = new byte[Page.PAGE_SIZE];
+		
 		
 		if (-1 == first_pg_no) {
 			ArrayList<Integer> chains = (ArrayList<Integer>) LinearHash.getLinHash().getChains();
@@ -368,9 +411,10 @@ public class Page {
 			LinearHash.getLinHash().setChains(chains);
 			
 		} else {
+			LinearHash.getDisk().readPage(first_page_buf, first_pg_no);
 			byte [] lastPageBuf = getLastPage(first_page_buf, false);
 			setNextPage(lastPageBuf, new_pg_no);
-			LinearHash.getDisk().writePage(lastPageBuf, getPageNo(lastPageBuf));
+			LinearHash.getDisk().writePage(lastPageBuf, getPageNo(newPgBuf));
 		}
 		
 		

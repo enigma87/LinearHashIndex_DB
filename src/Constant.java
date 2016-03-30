@@ -14,7 +14,9 @@ public class Constant {
 	
 	public final static int ADDRESS_SIZE = 4;
 	
-	public final static double LAMBDA_AVG = 2.5;
+	public final static double LAMBDA_AVG = 1.5;
+	
+	public final static int M_INC = 2;
 	
 	
 	public Constant() {
