@@ -10,6 +10,7 @@ public class RandomAccess {
 	private String path;
 
 	private static int pageAllocated = 0;
+	private static int pageDeAllocated = 0;
 
 	/**
 	 * Max allowed storage size is 1MB
@@ -18,11 +19,10 @@ public class RandomAccess {
 
 	RandomAccess(String path) throws ClassNotFoundException, IOException {
 		this.path = path;
-		Integer alloc = (Integer) Serializer.fileDeserialize(Constant.DISK_STATE);
-		if (null != alloc) {
-			pageAllocated = (int) alloc;
-		}
-		
+		Integer alloc = (Integer) Serializer.fileDeserialize(Constant.DISK_ALLOC);
+		Integer dealloc = (Integer) Serializer.fileDeserialize(Constant.DISK_DEALLOC);
+		if (null != alloc ) pageAllocated = (int) alloc;
+		if (null != dealloc) pageDeAllocated = (int ) dealloc;	
 	}
 
 	/**
@@ -101,7 +101,7 @@ public class RandomAccess {
 	protected int allocatePage() throws IOException {
 
 		 if (pageAllocated++ <= storageSize) { 
-			 Serializer.fileSerialize(pageAllocated, Constant.DISK_STATE);
+			 Serializer.fileSerialize(pageAllocated, Constant.DISK_ALLOC);
 			 System.out.println("page allocated : " + pageAllocated);
 			 return pageAllocated;
 		 } 
@@ -113,9 +113,19 @@ public class RandomAccess {
 	 * 
 	 * @param pageNumber
 	 *            - the number of the page that need to be deallocated
+	 * @throws IOException 
 	 */
-	protected void deallocatePage(int pageNumber) {
+	protected void deallocatePage(int pageNumber) throws IOException {
 		System.out.println('\n' + "Request for dealltion of page " + pageNumber
 				+ " received");
+
+		pageDeAllocated += 1;
+		Serializer.fileSerialize(pageDeAllocated, Constant.DISK_DEALLOC);
+	}
+
+	public void DiskStatus() {
+		// TODO Auto-generated method stub
+		System.out.println("pages allocated : " + pageAllocated);
+		System.out.println("pages deallocated : " + pageDeAllocated);
 	}
 }

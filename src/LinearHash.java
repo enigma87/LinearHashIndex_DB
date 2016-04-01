@@ -173,6 +173,9 @@ public class LinearHash {
 		
 		
 		showLinearHash();
+		
+		System.out.println("\n memory satus:");
+		lHash.getDisk().DiskStatus();
 	}
 	
 	

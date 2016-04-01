@@ -4,7 +4,9 @@ public class Constant {
 	
 	public final static String DISK_PATH = "device_0.RAF";
 	
-	public final static String DISK_STATE =  DISK_PATH + "_state";
+	public final static String DISK_ALLOC =  DISK_PATH + "_alloc";
+	
+	public final static String DISK_DEALLOC = DISK_PATH + "_dealloc";
 	
 	public final static String LH_SERIAL_PATH = "LH_serialized.ser";
 	
