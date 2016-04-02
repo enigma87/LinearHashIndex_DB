@@ -6,7 +6,7 @@ import java.util.List;
 
 public class Page {
 	
-	public final static int  PAGE_SIZE = 100;
+	public final static int  PAGE_SIZE = 70;
 	public final static int HEADER_LEN = 14;
 	
 	public final static int MAX_TUPLES =  (2* (Page.PAGE_SIZE/Tuple.TUPLE_SIZE))/3;
@@ -16,6 +16,8 @@ public class Page {
 	public enum PAGE_ITEMS {PAGE_LEN, HEADER_LEN, PAGE_NO, NEXTPAGE_NO, NO_OF_TUPLES, TUPLE_START}
 	
 	public enum ADD_STATUS {SUCCESS, PAGE_FULL, PAGE_SPLIT}
+	
+	public enum ITER_STATUS {NEXT_PAGE};
 
 	
 	static {
@@ -303,59 +305,68 @@ public class Page {
 		  * increment the sP value
 		  */
 		lh.setSP(sP + 1);
-		TupleIterator iter = getTupleIterator(splitBuf);
-		byte tuple []  = new byte[Tuple.TUPLE_SIZE];
 		
-		tuple = iter.getNext();
-		while(null != tuple) {
+		int cur_page_no = getPageNo(splitBuf);
+		while(-1 != cur_page_no) {
 			/*
-			 * we are reading tuples now, split them and put into 
-			 * buf1, buf2
+			 * read the page into split buf and delete from disk
 			 */
-			int new_chain_no = lh.Hash(Tuple.hash(Tuple.readKey(tuple)));
-			ADD_STATUS buf_full;
-			if (new_chain_no == split_chain_no) {
+			LinearHash.getDisk().readPage(splitBuf, cur_page_no);
+			LinearHash.getDisk().deallocatePage(cur_page_no);
+			
+			/*
+			 * get a page tuple iterator and iterate over the page
+			 */
+			TupleIterator iter = getTupleIterator(splitBuf);
+			byte tuple []  = new byte[Tuple.TUPLE_SIZE];
+			tuple = iter.getNextInPage();
+			
+			while(null != tuple) {
+				/*
+				 * we are reading tuples now, split them and put into 
+				 * buf1, buf2
+				 */
+				int new_chain_no = lh.Hash(Tuple.hash(Tuple.readKey(tuple)));
+				ADD_STATUS buf_full;
+				if (new_chain_no == split_chain_no) {
 				
-				buf_full = _addTuple(buf1, tuple);
+					buf_full = _addTuple(buf1, tuple);
 				
-				if (ADD_STATUS.PAGE_FULL == buf_full) {
-					System.out.println("New page split, buff1 full : add to : " + new_chain_no) ;
-					/*
-					 * save to disk, the buffer data 
-					 */
-					addBuffToChain(buf1, new_chain_no);
+					if (ADD_STATUS.PAGE_FULL == buf_full) {
+						System.out.println("New page split, buff1 full : add to : " + new_chain_no) ;
+						/*
+						 * save to disk, the buffer data 
+						 */	
+						addBuffToChain(buf1, new_chain_no);
+					}
+				} else  {
+				
+					
+					buf_full = _addTuple(buf2, tuple);
+					
+					if (ADD_STATUS.PAGE_FULL == buf_full) {
+						System.out.println("New page split, buff2 full : add to : " + new_chain_no);
+						/*
+						 * save to disk, the buffer data 
+						 */
+						addBuffToChain(buf2, new_chain_no);
+					}
 				}
-			} else  {
-				
-				if (new_chain_no == 0) {
-					System.out.println("wtf");
-				}
-				
-				buf_full = _addTuple(buf2, tuple);
-				
-				if (ADD_STATUS.PAGE_FULL == buf_full) {
-					System.out.println("New page split, buff2 full : add to : " + new_chain_no);
-					/*
-					 * save to disk, the buffer data 
-					 */
-					addBuffToChain(buf2, new_chain_no);
-				}
+			
+				tuple = iter.getNextInPage();
 			}
 			
-			tuple = iter.getNext();
+			cur_page_no = getNextPage(splitBuf);
+		
 		}
 		
-		if (getNoOfTuples(buf1) > 0) {
 			addBuffToChain(buf1, split_chain_no);
-		}
-		if (getNoOfTuples(buf2)> 0) {
 			addBuffToChain(buf2, lh.getM() + split_chain_no);
-		}
-	
+		
 
-	/*
-	increase the size of linear hash, if SP > M -1
-	*/
+			/*
+		increase the size of linear hash, if SP > M -1
+			 */
 		if (lh.getSP() >= lh.getM() ) {
 			
 			lh.setM(M * Constant.M_INC);
@@ -366,13 +377,11 @@ public class Page {
 				lh.setChains(chains); //persist every change
 			}
 		}
-		
 	}
-/*
- * add buff to chain
+
+ /*
+ * 	add buff to chain
  */
-	
-	
 	
 private static void addBuffToChain(byte [] buf, int new_chain_no) throws IOException {
 	
@@ -380,15 +389,11 @@ private static void addBuffToChain(byte [] buf, int new_chain_no) throws IOExcep
 	LinearHash.getLinHash().getDisk().writePage(buf, pg_no); 
 	
 	AddPageToChain(new_chain_no, buf);
-	/*
-	 * erase buf after write to disk
-	 */
-	buf = new byte[Page.PAGE_SIZE];
-	LinearHash.getNewPageBuf(buf);
+	
 }
 
 
-	/*
+/*
  * given a chain number and a byte buffer, 
  * copy the page number on the byte buffer to the chain's 
  * last page's next_page pointer
@@ -414,7 +419,7 @@ private static void addBuffToChain(byte [] buf, int new_chain_no) throws IOExcep
 			LinearHash.getDisk().readPage(first_page_buf, first_pg_no);
 			byte [] lastPageBuf = getLastPage(first_page_buf, false);
 			setNextPage(lastPageBuf, new_pg_no);
-			LinearHash.getDisk().writePage(lastPageBuf, getPageNo(newPgBuf));
+			LinearHash.getDisk().writePage(lastPageBuf, getPageNo(lastPageBuf));
 		}
 		
 		
@@ -454,6 +459,24 @@ private static void addBuffToChain(byte [] buf, int new_chain_no) throws IOExcep
 		public TupleIterator(byte[] page) {
 			pageBuf = page;
 		}
+		
+		
+		public byte[] getNextInPage() {
+			int no_of_tuples = getNoOfTuples(pageBuf);
+			if (curPos >= no_of_tuples) {
+				/*
+				 * reached end of page
+				 */
+				return null;
+			}
+			byte [] tuple = new byte[Tuple.TUPLE_SIZE];
+			int indx =  pageOffset.get(PAGE_ITEMS.TUPLE_START)[0];
+			indx +=  (curPos * Tuple.TUPLE_SIZE);
+			tuple = getTuple(pageBuf, indx);
+			curPos += 1;
+			return tuple;
+		}
+		
 		
 		public byte[] getNext() {
 			int no_of_tuples = getNoOfTuples(pageBuf);
