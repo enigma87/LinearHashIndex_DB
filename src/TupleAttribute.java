@@ -1,13 +1,16 @@
+import java.util.List;
 
 public class TupleAttribute {
 	boolean key;
 	int size;
 	String name;
 	
+	
 	public String getName() {
 		return name;
 	}
 
+	
 	public void setName(String name) {
 		this.name = name;
 	}
@@ -35,4 +38,13 @@ public class TupleAttribute {
 		this.size = size;
 	}
 	
+	public int startIndex(List<TupleAttribute> attrList) {
+		int offset = 0;
+		for (int i =0; i < attrList.size(); i++) {
+			if (attrList.get(i).getName() == this.getName()) break;
+			offset += attrList.get(i).size;
+		}
+		
+		return offset;
+	}	
 }

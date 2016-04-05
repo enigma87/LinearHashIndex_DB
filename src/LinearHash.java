@@ -294,19 +294,18 @@ public class LinearHash {
 		for(int i = 0; i< length; i++)
 		{
 			byte [] tuple = new byte[Tuple.TupleSize()];
-			System.arraycopy(Util.rightPadChar(values[i][0], Tuple.DNAME_SIZE, Tuple.NAME_PAD).getBytes("UTF8"), 0, tuple, 0, Tuple.DNAME_SIZE);
-			System.arraycopy(Util.rightPadChar(values[i][1], Tuple.MNAME_SIZE, Tuple.NAME_PAD).getBytes("UTF8"), 0, tuple, Tuple.DNAME_SIZE, Tuple.MNAME_SIZE);
-			//lHash.InsertTuple(tuple);
+			System.arraycopy(Util.rightPadChar(values[i][0], 10, Tuple.NAME_PAD).getBytes("UTF8"), 0, tuple, 0, 10);
+			System.arraycopy(Util.rightPadChar(values[i][1], 10, Tuple.NAME_PAD).getBytes("UTF8"), 0, tuple, 10, 10);
+			lHash.InsertTuple(tuple);
 			
 			
 			//System.out.println(lHash.Hash(Tuple.hash(Tuple.readKey(tuple))));
 			
-		//	System.out.println(new String(lHash.Search(Tuple.readKey(tuple))));
-			
+			System.out.println(new String(lHash.Search(Tuple.readKey(tuple))));	
 		}
 			
 	
-		System.out.println(new String(lHash.Search("ACEVEDO#JR".getBytes())));
+		//System.out.println(new String(lHash.Search("ACEVEDO#JR".getBytes())));
 		
 		showLinearHash();
 		
