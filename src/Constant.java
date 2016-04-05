@@ -10,6 +10,8 @@ public class Constant {
 	
 	public final static String LH_SERIAL_PATH = "LH_serialized.ser";
 	
+	public final static String TUPLE_CONFIG_XML = "tuple_config.xml";
+	
 	public final static Integer M_INIT = 3;
 	
 	public final static Integer SP_INIT = 0;

@@ -6,10 +6,10 @@ import java.util.List;
 
 public class Page {
 	
-	public final static int  PAGE_SIZE = 70;
+	public final static int  PAGE_SIZE = 200;
 	public final static int HEADER_LEN = 14;
 	
-	public final static int MAX_TUPLES =  (2* (Page.PAGE_SIZE/Tuple.TUPLE_SIZE))/3;
+	public final static int MAX_TUPLES =  (2* (Page.PAGE_SIZE/Tuple.TupleSize()))/3;
 	
 	public static final HashMap<PAGE_ITEMS, int[]> pageOffset;
 	
@@ -110,8 +110,8 @@ public class Page {
 	 * identify the "tuple_index" bytes and return the byte array
 	 */
 	public static byte[] getTuple(byte[] buff, int indx) {
-		byte [] tuple = new byte [Tuple.TUPLE_SIZE];
-		System.arraycopy(buff, indx  , tuple, 0, Tuple.TUPLE_SIZE);
+		byte [] tuple = new byte [Tuple.TupleSize()];
+		System.arraycopy(buff, indx  , tuple, 0, Tuple.TupleSize());
 		return tuple;
 	}
 	
@@ -163,7 +163,7 @@ public class Page {
 	}
 
 	public static void setTuple(byte[] buff, int indx, byte[] tuple) {
-		System.arraycopy(tuple, 0, buff, indx, Tuple.TUPLE_SIZE);
+		System.arraycopy(tuple, 0, buff, indx, Tuple.TupleSize());
 	}
 
 	
@@ -254,8 +254,6 @@ public class Page {
 		return null;
 	}
 	
-	
-
 
 	private static void SplitChain() throws IOException {
 		/*
@@ -318,7 +316,7 @@ public class Page {
 			 * get a page tuple iterator and iterate over the page
 			 */
 			TupleIterator iter = getTupleIterator(splitBuf);
-			byte tuple []  = new byte[Tuple.TUPLE_SIZE];
+			byte tuple []  = new byte[Tuple.TupleSize()];
 			tuple = iter.getNextInPage();
 			
 			while(null != tuple) {
@@ -382,7 +380,6 @@ public class Page {
  /*
  * 	add buff to chain
  */
-	
 private static void addBuffToChain(byte [] buf, int new_chain_no) throws IOException {
 	
 	int pg_no = getPageNo(buf);
@@ -435,7 +432,7 @@ private static void addBuffToChain(byte [] buf, int new_chain_no) throws IOExcep
 		}
 		
 		int [] tuple_start = pageOffset.get(PAGE_ITEMS.TUPLE_START);
-		int indx = tuple_start[0] + iter.curPos * Tuple.TUPLE_SIZE;
+		int indx = tuple_start[0] + iter.curPos * Tuple.TupleSize();
 		
 		int next_page = getNextPage(pageBuf);
 		int no_of_tuples = getNoOfTuples(pageBuf);
@@ -469,9 +466,9 @@ private static void addBuffToChain(byte [] buf, int new_chain_no) throws IOExcep
 				 */
 				return null;
 			}
-			byte [] tuple = new byte[Tuple.TUPLE_SIZE];
+			byte [] tuple = new byte[Tuple.TupleSize()];
 			int indx =  pageOffset.get(PAGE_ITEMS.TUPLE_START)[0];
-			indx +=  (curPos * Tuple.TUPLE_SIZE);
+			indx +=  (curPos * Tuple.TupleSize());
 			tuple = getTuple(pageBuf, indx);
 			curPos += 1;
 			return tuple;
@@ -491,9 +488,9 @@ private static void addBuffToChain(byte [] buf, int new_chain_no) throws IOExcep
 				curPos = 0;
 				
 			}
-			byte [] tuple = new byte[Tuple.TUPLE_SIZE];
+			byte [] tuple = new byte[Tuple.TupleSize()];
 			int indx =  pageOffset.get(PAGE_ITEMS.TUPLE_START)[0];
-			indx +=  (curPos * Tuple.TUPLE_SIZE);
+			indx +=  (curPos * Tuple.TupleSize());
 			tuple = getTuple(pageBuf, indx);
 			curPos += 1;
 			return tuple;
@@ -501,7 +498,25 @@ private static void addBuffToChain(byte [] buf, int new_chain_no) throws IOExcep
 		
 	}
 	
-	
+	public static byte [] SearchTuple(byte[] firstPageBuf, byte[] key) {
+		byte[] tuple = null;
+		TupleIterator iter = getTupleIterator(firstPageBuf);
+		
+		System.out.println(new String(key) + " == ");
+		byte [] nextTuple = iter.getNext();
+		while(null != nextTuple ) {
+			
+			System.out.println(new String(Tuple.readKey(nextTuple)));
+			
+			if(Tuple.equals(Tuple.readKey(nextTuple), key)) {
+				return nextTuple;
+			}
+			
+			nextTuple = iter.getNext();
+		}
+		
+		return tuple;
+	}
 	
 	/*
 	public static void main(String args []) {

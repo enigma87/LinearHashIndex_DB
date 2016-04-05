@@ -1,9 +1,12 @@
+import java.io.BufferedReader;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.StringTokenizer;
 
 @SuppressWarnings("unchecked")
 public class LinearHash {
@@ -142,6 +145,23 @@ public class LinearHash {
 		} 
 	}
 	
+	public byte[] Search(byte[] key) {
+		byte[] tuple = new byte[Tuple.TupleSize()];
+		int chain_no = Hash(Tuple.hash(key));
+		
+		System.out.println(chain_no);
+		
+		int first_pg_no = getChains().get(chain_no);
+		byte[] pgBuf = new byte[Page.PAGE_SIZE];
+		
+		getDisk().readPage(pgBuf, first_pg_no);
+		
+		tuple = Page.SearchTuple(pgBuf, key);
+		
+		return tuple;
+	}
+	
+	
 	public static RandomAccess getDisk() {
 		return disk;
 	}
@@ -150,35 +170,7 @@ public class LinearHash {
 		disk = dsk;
 	}
 
-	public static void main(String args[] ) throws IOException, ClassNotFoundException {
 		
-		LinearHash lHash = getLinHash();
-		
-		String [] dnames = new String []{"finance","acounting", "pr", "crm", "oions", "sales", "marketing","finance","accoung", "prod", "crmod", "opeions", "saasdes", "maasdking"};
-		String [] mnames = new String[] {"alberto", "bobo", "cassandra", "Dreyfus", "Eliza", "Fanny", "George","alberto", "bobo", "cassandra", "Dreyfus", "Eliza", "Fanny", "George"};
-		
-		
-		for (int i: Util.range(0, dnames.length, 1)) {	
-			byte [] tuple = new byte[Tuple.TUPLE_SIZE];
-			System.arraycopy(Util.rightPadChar(dnames[i], Tuple.DNAME_SIZE, Tuple.NAME_PAD).getBytes("UTF8"), 0, tuple, 0, Tuple.DNAME_SIZE);
-			System.arraycopy(Util.rightPadChar(mnames[i], Tuple.MNAME_SIZE, Tuple.NAME_PAD).getBytes("UTF8"), 0, tuple, Tuple.DNAME_SIZE, Tuple.MNAME_SIZE);
-			
-		//	lHash.setSP(1);
-			
-		//	System.out.print(Tuple.hash(Tuple.readKey(tuple)) + " " + lHash.Hash(Tuple.hash(Tuple.readKey(tuple))) + "\n");
-			
-			lHash.InsertTuple(tuple);
-
-		}
-		
-		
-		showLinearHash();
-		
-		System.out.println("\n memory satus:");
-		lHash.getDisk().DiskStatus();
-	}
-	
-	
 	
 	/*
 	 * persist index for future runs
@@ -272,5 +264,55 @@ public class LinearHash {
 		int sP = linHash.getSP();
 		return M + sP;
 	}
+
+	public static void main(String args[] ) throws IOException, ClassNotFoundException {
+		
+		LinearHash lHash = getLinHash();
+		
+		String csvfile = "Employees.csv";
+		String line = "";
+		String split = ",";
+		BufferedReader br = new BufferedReader(new FileReader(csvfile));
+		String[][] values = new String[1000][1000];
+		int row = 0;
+		int col = 0;
+		int length = 0;
+		while((line = br.readLine()) != null)
+		{
+			col = 0;
+			StringTokenizer st = new StringTokenizer(line,split);
+            while (st.hasMoreTokens())
+            {
+            	values[row][col] = st.nextToken();
+            	col++;
+            }
+            row++;
+            length++;
+		}
+		br.close();
+		System.out.println(length);
+		for(int i = 0; i< length; i++)
+		{
+			byte [] tuple = new byte[Tuple.TupleSize()];
+			System.arraycopy(Util.rightPadChar(values[i][0], Tuple.DNAME_SIZE, Tuple.NAME_PAD).getBytes("UTF8"), 0, tuple, 0, Tuple.DNAME_SIZE);
+			System.arraycopy(Util.rightPadChar(values[i][1], Tuple.MNAME_SIZE, Tuple.NAME_PAD).getBytes("UTF8"), 0, tuple, Tuple.DNAME_SIZE, Tuple.MNAME_SIZE);
+			//lHash.InsertTuple(tuple);
+			
+			
+			//System.out.println(lHash.Hash(Tuple.hash(Tuple.readKey(tuple))));
+			
+		//	System.out.println(new String(lHash.Search(Tuple.readKey(tuple))));
+			
+		}
+			
 	
+		System.out.println(new String(lHash.Search("ACEVEDO#JR".getBytes())));
+		
+		showLinearHash();
+		
+		System.out.println("\n memory status:");
+		lHash.getDisk().DiskStatus();
+	}
+	
+
 }
