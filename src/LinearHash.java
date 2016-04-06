@@ -156,6 +156,9 @@ public class LinearHash {
 		
 		getDisk().readPage(pgBuf, first_pg_no);
 		
+		if (Tuple.equals(key, "ABREU##ROS".getBytes())) {
+			System.out.println("blah");
+		}
 		tuple = Page.SearchTuple(pgBuf, key);
 		
 		return tuple;
@@ -296,11 +299,13 @@ public class LinearHash {
 			byte [] tuple = new byte[Tuple.TupleSize()];
 			System.arraycopy(Util.rightPadChar(values[i][0], 10, Tuple.NAME_PAD).getBytes("UTF8"), 0, tuple, 0, 10);
 			System.arraycopy(Util.rightPadChar(values[i][1], 10, Tuple.NAME_PAD).getBytes("UTF8"), 0, tuple, 10, 10);
+			if (Tuple.equals(Tuple.readKey(tuple), "ABREU##ROS".getBytes())) {
+				System.out.println("blah");
+			}
 			lHash.InsertTuple(tuple);
 			
 			
 			//System.out.println(lHash.Hash(Tuple.hash(Tuple.readKey(tuple))));
-			
 			System.out.println(new String(lHash.Search(Tuple.readKey(tuple))));	
 		}
 			

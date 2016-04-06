@@ -6,7 +6,7 @@ import java.util.List;
 
 public class Page {
 	
-	public final static int  PAGE_SIZE = 200;
+	public final static int  PAGE_SIZE = 50;
 	public final static int HEADER_LEN = 14;
 	
 	public final static int MAX_TUPLES =  (2* (Page.PAGE_SIZE/Tuple.TupleSize()))/3;
@@ -336,6 +336,7 @@ public class Page {
 						 * save to disk, the buffer data 
 						 */	
 						addBuffToChain(buf1, new_chain_no);
+						LinearHash.getNewPageBuf(buf1);
 					}
 				} else  {
 				
@@ -348,6 +349,7 @@ public class Page {
 						 * save to disk, the buffer data 
 						 */
 						addBuffToChain(buf2, new_chain_no);
+						LinearHash.getNewPageBuf(buf2);
 					}
 				}
 			
@@ -370,7 +372,7 @@ public class Page {
 			lh.setM(M * Constant.M_INC);
 			lh.setSP(Constant.SP_INIT);
 			
-			for (int i = lh.getM(); i < lh.getM() * Constant.M_INC; i ++) {
+			for (int i = lh.getM(); i < lh.getM() * Constant.M_INC; i++) {
 				chains.add(i, -1);
 				lh.setChains(chains); //persist every change
 			}
