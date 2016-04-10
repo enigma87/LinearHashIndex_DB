@@ -3,6 +3,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -156,9 +157,6 @@ public class LinearHash {
 		
 		getDisk().readPage(pgBuf, first_pg_no);
 		
-		if (Tuple.equals(key, "ABREU##ROS".getBytes())) {
-			System.out.println("blah");
-		}
 		tuple = Page.SearchTuple(pgBuf, key);
 		
 		return tuple;
@@ -224,10 +222,14 @@ public class LinearHash {
 	 */
 	public static int getNewPageBuf(byte[] pageBuf)  {
 		
+		
 		if (Page.PAGE_SIZE > pageBuf.length) {
 			System.err.println("Buffer underflow for new page creation, ");
 			System.exit(0);
 		}
+		
+		Arrays.fill(pageBuf, (byte) 0);
+		
 		// allocate a new page on disk
 		int new_page_no =-1;
 		try {
@@ -276,7 +278,7 @@ public class LinearHash {
 		String line = "";
 		String split = ",";
 		BufferedReader br = new BufferedReader(new FileReader(csvfile));
-		String[][] values = new String[1000][1000];
+		String[][] values = new String[2000][1000];
 		int row = 0;
 		int col = 0;
 		int length = 0;
@@ -297,16 +299,27 @@ public class LinearHash {
 		for(int i = 0; i< length; i++)
 		{
 			byte [] tuple = new byte[Tuple.TupleSize()];
-			System.arraycopy(Util.rightPadChar(values[i][0], 10, Tuple.NAME_PAD).getBytes("UTF8"), 0, tuple, 0, 10);
-			System.arraycopy(Util.rightPadChar(values[i][1], 10, Tuple.NAME_PAD).getBytes("UTF8"), 0, tuple, 10, 10);
-			if (Tuple.equals(Tuple.readKey(tuple), "ABREU##ROS".getBytes())) {
-				System.out.println("blah");
+			System.arraycopy(Util.rightPadChar(values[i][0], 15, Tuple.NAME_PAD).getBytes("UTF8"), 0, tuple, 0, 15);
+			System.arraycopy(Util.rightPadChar(values[i][1], 10, Tuple.NAME_PAD).getBytes("UTF8"), 0, tuple, 15, 10);
+			
+			if (lHash.Hash(Tuple.hash(Tuple.readKey(tuple))) == 0) {
+				
+			//	showLinearHash();
+			//	System.out.println(new String(Tuple.readKey(tuple)));
+			//	System.out.println("blah");
+				
 			}
+			
 			lHash.InsertTuple(tuple);
 			
 			
 			//System.out.println(lHash.Hash(Tuple.hash(Tuple.readKey(tuple))));
-			System.out.println(new String(lHash.Search(Tuple.readKey(tuple))));	
+			try{
+				System.out.println(new String(lHash.Search(Tuple.readKey(tuple))));	
+			}
+			catch(Exception e) {
+				System.out.println();
+			}
 		}
 			
 	

@@ -19,12 +19,7 @@ import org.xml.sax.SAXException;
 public class Tuple {
 
 	
-	/*public static final int TUPLE_SIZE;
 	
-	public static final int DNAME_SIZE = 10 ;
-	
-	public static final int MNAME_SIZE = 10;
-*/
 	public static final char NAME_PAD = '#';
 	public static final List<TupleAttribute> tupleAttr =  new ArrayList<TupleAttribute>();
 	
@@ -40,7 +35,7 @@ public class Tuple {
 		Document xmlDoc;
 		try {
 			xmlBuilder = xmlBuildFactory.newDocumentBuilder();
-			xmlDoc = xmlBuilder.parse(new File("tuple_config.xml"));
+			xmlDoc = xmlBuilder.parse(new File(Constant.TUPLE_CONFIG_XML));
 			Element docEl = xmlDoc.getDocumentElement();
 			docEl.normalize();
 			NodeList nl = docEl.getChildNodes();
@@ -103,6 +98,16 @@ public class Tuple {
 		return true;
 	}
 
+	public static boolean LessThan(byte key1[], byte key2 []) throws UnsupportedOperationException{
+		if (key1.length != key2.length) throw new UnsupportedOperationException();
+		
+		for (int i =0; i < key1.length ; i++) {
+			if (new Byte(key1[i]).toString().compareTo((new Byte(key2[i]).toString())) > 0) {
+				return false;
+			}
+		}
+		return true;
+	}
 	
 	public static TupleAttribute getKeyAttribute() {
 		
@@ -128,8 +133,8 @@ public class Tuple {
 		return tuple_size;
 	}
 	
-	public static void main(String args[]) {
+	/*public static void main(String args[]) {
 		
 		
-	}
+	}*/
 }
