@@ -159,6 +159,9 @@ public class LinearHash {
 		
 		tuple = Page.SearchTuple(pgBuf, key);
 		
+		if (null == tuple) {
+			System.out.println("**tuple for "+ new String(key) + " doesn't exist**");
+		}
 		return tuple;
 	}
 	
@@ -270,13 +273,19 @@ public class LinearHash {
 		return M + sP;
 	}
 
-	public static void main(String args[] ) throws IOException, ClassNotFoundException {
+	public static void importData(LinearHash lHash, String fileName) throws IOException, ClassNotFoundException {
+		String csvfile = fileName;
 		
-		LinearHash lHash = getLinHash();
+		String ext = fileName.substring(fileName.lastIndexOf(".") + 1, fileName.length());
 		
-		String csvfile = "Employees.csv";
+		if (!ext.equals("csv")) {
+			System.err.println("\nImport data must be in CSV format!\n");
+			return;
+		}
+		
 		String line = "";
 		String split = ",";
+	
 		BufferedReader br = new BufferedReader(new FileReader(csvfile));
 		String[][] values = new String[2000][1000];
 		int row = 0;
@@ -295,37 +304,41 @@ public class LinearHash {
             length++;
 		}
 		br.close();
-		System.out.println(length);
+		
+		
 		for(int i = 0; i< length; i++)
 		{
 			byte [] tuple = new byte[Tuple.TupleSize()];
 			System.arraycopy(Util.rightPadChar(values[i][0], 15, Tuple.NAME_PAD).getBytes("UTF8"), 0, tuple, 0, 15);
 			System.arraycopy(Util.rightPadChar(values[i][1], 10, Tuple.NAME_PAD).getBytes("UTF8"), 0, tuple, 15, 10);
-			
-			if (lHash.Hash(Tuple.hash(Tuple.readKey(tuple))) == 0) {
-				
-			//	showLinearHash();
-			//	System.out.println(new String(Tuple.readKey(tuple)));
-			//	System.out.println("blah");
-				
-			}
+		
 			
 			lHash.InsertTuple(tuple);
 			
 			
-			//System.out.println(lHash.Hash(Tuple.hash(Tuple.readKey(tuple))));
-			try{
-				System.out.println(new String(lHash.Search(Tuple.readKey(tuple))));	
-			}
-			catch(Exception e) {
-				System.out.println();
-			}
 		}
 			
 	
+	}
+	
+	
+	public static void main(String args[] ) throws IOException, ClassNotFoundException {
+		
+		LinearHash lHash = getLinHash();
+		
+		lHash.importData(lHash, "Employees.csX");
+		
+		try{
+			System.out.println(new String(lHash.Search("AUGUSTINEMARCW#".getBytes())));
+			System.out.println(new String(lHash.Search("XASDFASDFASDFAS".getBytes())));
+		}
+		catch(Exception e) {
+			System.out.println();
+		}
+		
 		//System.out.println(new String(lHash.Search("ACEVEDO#JR".getBytes())));
 		
-		showLinearHash();
+		//showLinearHash();
 		
 		System.out.println("\n memory status:");
 		lHash.getDisk().DiskStatus();
