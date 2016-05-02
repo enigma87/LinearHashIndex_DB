@@ -1,16 +1,18 @@
 public class Constant {
 
+	public final static String BASE_PATH = "";
 	
 	
-	public final static String DISK_PATH = "device_0.RAF";
+	
+	public final static String DISK_PATH = BASE_PATH + "device_0.RAF";
 	
 	public final static String DISK_ALLOC =  DISK_PATH + "_alloc";
 	
 	public final static String DISK_DEALLOC = DISK_PATH + "_dealloc";
 	
-	public final static String LH_SERIAL_PATH = "LH_serialized.ser";
+	public final static String LH_SERIAL_PATH = BASE_PATH + "LH_serialized.ser";
 	
-	public final static String TUPLE_CONFIG_XML = "tuple_config.xml";
+	public final static String TUPLE_CONFIG_XML = BASE_PATH + "tuple_config.xml";
 	
 	public final static Integer M_INIT = 3;
 	

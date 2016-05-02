@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<tuple>
-<dname name="dname" key="true" index="0" size="15"></dname>
-<mname name="mname" key="false" index="1" size="10"></mname>
+<config>
+<tuple tablename="employees">
+<dname name="dname" key="true"  size="10"></dname>
+<mname name="mname" key="false"  size="10"></mname>
 </tuple>
+<tuple tablename="departments">
+<dname name="dname" key="false"  size="15"></dname>
+<mname name="mname" key="true"  size="10"></mname>
+</tuple>
+</config>

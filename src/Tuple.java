@@ -1,9 +1,9 @@
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -18,10 +18,7 @@ import org.xml.sax.SAXException;
 
 public class Tuple {
 
-	
-	
-	public static final char NAME_PAD = '#';
-	public static final List<TupleAttribute> tupleAttr =  new ArrayList<TupleAttribute>();
+	public static final Map<String,ArrayList<TupleAttribute>> tupleAttr =  new HashMap<String,ArrayList<TupleAttribute>>();
 	
 	
 	static {
@@ -33,6 +30,7 @@ public class Tuple {
 		DocumentBuilderFactory xmlBuildFactory = DocumentBuilderFactory.newInstance();
 		DocumentBuilder xmlBuilder;
 		Document xmlDoc;
+		
 		try {
 			xmlBuilder = xmlBuildFactory.newDocumentBuilder();
 			xmlDoc = xmlBuilder.parse(new File(Constant.TUPLE_CONFIG_XML));
@@ -41,22 +39,23 @@ public class Tuple {
 			NodeList nl = docEl.getChildNodes();
 			
 			for (int i =0 ; i < nl.getLength(); i++) {
-	
 				Node node = nl.item(i);
-				if (Node.ELEMENT_NODE == node.getNodeType()) {
-					
-					
-					NamedNodeMap attrMap = node.getAttributes();
-					System.out.println(attrMap.getNamedItem("key").getNodeValue().toString());
-					boolean key = attrMap.getNamedItem("key").getNodeValue().toString().equals("true");
-					String name = attrMap.getNamedItem("name").getNodeValue().toString();
-					int size = Integer.parseInt(attrMap.getNamedItem("size").getNodeValue().toString());
-					tupleAttr.add(new TupleAttribute(key, size, name));
-					
+				if (Node.ELEMENT_NODE == node.getNodeType()){ 
+					String tableName = node.getAttributes().getNamedItem("tablename").getNodeValue();
+					tupleAttr.put(tableName, new ArrayList<TupleAttribute>());
+					NodeList childNodes = node.getChildNodes();
+					for (int j = 0; j <childNodes.getLength(); j++) {
+						Node col = childNodes.item(j);
+						if (Node.ELEMENT_NODE == col.getNodeType()) {
+							NamedNodeMap colMap = col.getAttributes();
+							String colName = colMap.getNamedItem("name").getNodeValue();
+							Boolean isKey = "true".equals(colMap.getNamedItem("key").getNodeValue());
+							int size = Integer.parseInt(colMap.getNamedItem("size").getNodeValue());
+							tupleAttr.get(tableName).add(new TupleAttribute(isKey, size, colName));
+						}	
+					}
 				}
-				
-			}
-			
+			}		
 		} catch (ParserConfigurationException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -90,7 +89,22 @@ public class Tuple {
 
 	public static boolean equals(byte[] key1, byte[] key2) {
 		
-		if (key1.length != key2.length) return false;
+		if (key1.length != key2.length) { 
+		
+			byte[] shorter = key1.length > key2.length ? key2 : key1;
+			byte[] longer = key1.length < key2.length ? key2 : key1;
+			
+			for (int i =0; i < shorter.length; i++) {
+				if (!new Byte(key1[i]).equals(new Byte(key2[i]))) return false;
+			}
+			
+			for (int i = shorter.length; i < longer.length; i++) {
+				if (0 != (int) longer[i]) {
+					return false;
+				}
+			}
+			return true;
+		}
 		
 		for (int i =0; i < key1.length; i++) {
 			if (!new Byte(key1[i]).equals(new Byte(key2[i]))) return false;
@@ -109,32 +123,28 @@ public class Tuple {
 		return true;
 	}
 	
-	public static TupleAttribute getKeyAttribute() {
+	public static TupleAttribute getKeyAttribute(String tableName) {
 		
-		for (TupleAttribute ta : tupleAttr) {
+		for (TupleAttribute ta : tupleAttr.get(tableName)) {
 			if (ta.isKey()) return ta;
 		}
 		return null;
 	}
 	
-	public static byte[] readKey(byte tuple []) {
-		TupleAttribute keyAttr = getKeyAttribute();
+	public static byte[] readKey(String tableName, byte tuple []) {
+		TupleAttribute keyAttr = getKeyAttribute(tableName);
 		byte[] key = new byte[keyAttr.getSize()] ;
-		System.arraycopy(tuple, keyAttr.startIndex(tupleAttr), key, 0, keyAttr.getSize());
+		System.arraycopy(tuple, keyAttr.startIndex(tupleAttr.get(tableName)), key, 0, keyAttr.getSize());
 		return key;
 	}
 	
-	public static int TupleSize() {
+	public static int TupleSize(String tableName) {
 		int tuple_size = 0;
 		
-		for (TupleAttribute ta : tupleAttr) {
+		for (TupleAttribute ta : tupleAttr.get(tableName)) {
 			tuple_size += ta.getSize();
 		}	
 		return tuple_size;
 	}
 	
-	/*public static void main(String args[]) {
-		
-		
-	}*/
 }

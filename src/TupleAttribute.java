@@ -1,6 +1,7 @@
 import java.util.List;
 
 public class TupleAttribute {
+	
 	boolean key;
 	int size;
 	String name;
@@ -14,7 +15,7 @@ public class TupleAttribute {
 	public void setName(String name) {
 		this.name = name;
 	}
-
+	
 	public TupleAttribute(boolean key, int size, String name) {
 		// TODO Auto-generated constructor stub
 		this.setKey(key);

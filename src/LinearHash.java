@@ -2,25 +2,34 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.StringTokenizer;
 
 @SuppressWarnings("unchecked")
-public class LinearHash {
+public class LinearHash implements Serializable{
 	
-	private  static LinearHash linHash ;
-	public HashMap<String,Object> index;
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+	public static RandomAccess  disk;
+	private  static HashMap<String, LinearHash> store;
 	
-	public static RandomAccess  disk; 
+	private HashMap<String,Object> index;
+	private String tableName;
+	
+	 
 	
 	static {
 		try {
-			linHash = new LinearHash();
-			linHash.saveState();
+			store = (HashMap<String, LinearHash>) Serializer.fileDeserialize(Constant.LH_SERIAL_PATH);
+			if (null == store) store = new HashMap<String, LinearHash>();  
+			disk = new RandomAccess(Constant.DISK_PATH);
+			saveState();
 			
 		} catch (ClassNotFoundException | IOException e) {
 			// TODO Auto-generated catch block
@@ -29,25 +38,19 @@ public class LinearHash {
 	}
 	
 	
-	public static LinearHash getLinHash(){
-		return linHash;
-	}
-	
-	
- 	private LinearHash() throws ClassNotFoundException, IOException {
-		disk = new RandomAccess(Constant.DISK_PATH);
+ 	private LinearHash(String tableName) throws ClassNotFoundException, IOException {
+		this.tableName = tableName;
 		
 		try {
-			index = (HashMap<String, Object>) Serializer.fileDeserialize(Constant.LH_SERIAL_PATH);
 			
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-		} 
-		catch(FileNotFoundException e) {
-			/*
-			 * if file not found, carry on as usual, we will generate it anyway
-			 */
-		}catch (IOException e) {
+			if (store.containsKey(tableName)) {
+				index = store.get(tableName).index;
+			} else {
+				store.put(tableName, this);
+			}
+			
+			
+		} catch (Exception e) {
 			
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -69,15 +72,15 @@ public class LinearHash {
 			
 	 int  getM() {
 		
-		return (int) linHash.index.get("M");
+		return (int) index.get("M");
 	}
 	
 	 int getSP() {
-		return (int) linHash.index.get("SP");
+		return (int) index.get("SP");
 	}
 	 
 	 List<Integer> getChains() {
-			return (List<Integer>) linHash.index.get("chains");
+			return (List<Integer>) index.get("chains");
 		} 
 	
 	 void setM(int M) throws IOException {
@@ -105,10 +108,15 @@ public class LinearHash {
 	}
 
 	public  void InsertTuple(byte[] tuple) throws ClassNotFoundException, IOException {
-		byte [] key = Tuple.readKey(tuple);
+		
+		byte[] newTuple = new byte[Tuple.TupleSize(this.getTableName())];
+		System.arraycopy(tuple, 0, newTuple, 0, tuple.length);
+		tuple = newTuple;
+		
+		byte [] key = Tuple.readKey(this.getTableName(), tuple);
 		int chain_no = Hash(Tuple.hash(key));
 		
-		List<Integer> chains = (ArrayList<Integer>) linHash.getChains();
+		List<Integer> chains = (ArrayList<Integer>) this.getChains();
 		
 		int firstPageID = (int) chains.get(chain_no);
 
@@ -125,7 +133,7 @@ public class LinearHash {
 			 * record the state : persist
 			 */	
 			chains.set(chain_no, new Integer(new_pg_no));
-			linHash.setChains((ArrayList<Integer>) chains);
+			this.setChains((ArrayList<Integer>) chains);
 			
 			
 			firstPageID = new_pg_no;
@@ -135,7 +143,7 @@ public class LinearHash {
 			
 		}		
 		
-		Page.ADD_STATUS updated_status = Page.addTuple(pgBuf, tuple);
+		Page.ADD_STATUS updated_status = Page.addTuple(this, pgBuf, tuple);
 		
 		if (Page.ADD_STATUS.SUCCESS != updated_status) { 
 			/*
@@ -147,18 +155,25 @@ public class LinearHash {
 	}
 	
 	public byte[] Search(byte[] key) {
-		byte[] tuple = new byte[Tuple.TupleSize()];
+		
+		byte[] tuple = new byte[Tuple.TupleSize(this.getTableName())];
 		int chain_no = Hash(Tuple.hash(key));
 		
-		System.out.println(chain_no);
+		//System.out.println(chain_no);
 		
 		int first_pg_no = getChains().get(chain_no);
-		byte[] pgBuf = new byte[Page.PAGE_SIZE];
 		
-		getDisk().readPage(pgBuf, first_pg_no);
+		if (-1 != first_pg_no) { 
+			
+			byte[] pgBuf = new byte[Page.PAGE_SIZE];
 		
-		tuple = Page.SearchTuple(pgBuf, key);
+			getDisk().readPage(pgBuf, first_pg_no);
 		
+			System.out.print("\n-------------------\nSearching...");
+		
+			tuple = Page.SearchTuple(this.getTableName(), pgBuf, key);
+			
+		}
 		if (null == tuple) {
 			System.out.println("**tuple for "+ new String(key) + " doesn't exist**");
 		}
@@ -179,11 +194,11 @@ public class LinearHash {
 	/*
 	 * persist index for future runs
 	 */
-	public void saveState() throws IOException {
+	public static void saveState() throws IOException {
 		/*
 		 * record the linear hash to the serialized file : persistent storage!
 		 */
-		Serializer.fileSerialize(linHash.index, Constant.LH_SERIAL_PATH);
+		Serializer.fileSerialize(store, Constant.LH_SERIAL_PATH);
 			
 	}
 		
@@ -194,23 +209,29 @@ public class LinearHash {
 	 * 		debugging
 	 * 		illustration 
 	 */
-	public static void showLinearHash() {
-		List chains = linHash.getChains();
+	public  String showLinearHash() {
+		List<Integer> chains = this.getChains();
+		StringBuffer strBuff = new StringBuffer();
 		
 		for (int i = 0; i < chains.size(); i++) {
 			int first_pg_no = (Integer)  chains.get(i);
-			System.out.print(first_pg_no + "->");
+			
+			strBuff.append(first_pg_no + "->");
+			
 			if (-1 == first_pg_no) {
-				System.out.println();
+				strBuff.append("\n");
 				continue;
 			}
 			
 			byte[] firstPage = new byte[Page.PAGE_SIZE];
-			linHash.disk.readPage(firstPage, first_pg_no);
-			Page.getLastPage(firstPage, true);
-			System.out.print("#");
-			System.out.println("");
+			getDisk().readPage(firstPage, first_pg_no);
+			Page.getLastPage(firstPage, strBuff);
+			
+			strBuff.append( "#\n");
+			
 		}
+		System.out.println(strBuff.toString());
+		return strBuff.toString();
 	}
 	
 	
@@ -251,13 +272,13 @@ public class LinearHash {
 		return new_page_no;
 	}
 	
-	public static Double getAverageChainLength() {
+	public  Double getAverageChainLength() {
 		int no_of_pages = 0;
-		List<Integer> chains = (List<Integer>) linHash.getChains();
+		List<Integer> chains = (List<Integer>) this.getChains();
  		for (int i=0; i< chains.size();i++) {
 			if (-1 < chains.get(i)) {
 				byte [] firstPage = new byte[Page.PAGE_SIZE];
-				linHash.disk.readPage(firstPage, chains.get(i));
+				getDisk().readPage(firstPage, chains.get(i));
 				no_of_pages += Page.getChainLength(firstPage);
 			}
 		}
@@ -267,14 +288,14 @@ public class LinearHash {
  		return ( (double)no_of_pages/(double) active_chains_no);
 	}
 
-	private static int getNoOfActiveChains() {
-		int M = linHash.getM();
-		int sP = linHash.getSP();
+	private  int getNoOfActiveChains() {
+		int M = this.getM();
+		int sP = this.getSP();
 		return M + sP;
 	}
 
-	public static void importData(LinearHash lHash, String fileName) throws IOException, ClassNotFoundException {
-		String csvfile = fileName;
+	public void importData(String fileName) throws IOException, ClassNotFoundException {
+		String csvfile = Constant.BASE_PATH + fileName;
 		
 		String ext = fileName.substring(fileName.lastIndexOf(".") + 1, fileName.length());
 		
@@ -285,63 +306,107 @@ public class LinearHash {
 		
 		String line = "";
 		String split = ",";
-	
-		BufferedReader br = new BufferedReader(new FileReader(csvfile));
-		String[][] values = new String[2000][1000];
-		int row = 0;
-		int col = 0;
-		int length = 0;
+		BufferedReader br = null;
+		List<ArrayList<String>> data = null;
+		
+	try {
+		 br = new BufferedReader(new FileReader(csvfile));
+		 data = new ArrayList<ArrayList<String>>();
+	} catch(FileNotFoundException f) {
+		System.err.println("All temp/config files need to be in $CyDIW_HOME/cyclients/linearhash/workspace");
+		System.exit(1);
+	}	
 		while((line = br.readLine()) != null)
 		{
-			col = 0;
 			StringTokenizer st = new StringTokenizer(line,split);
-            while (st.hasMoreTokens())
+            ArrayList<String> row = new ArrayList<String>();
+			while (st.hasMoreTokens())
             {
-            	values[row][col] = st.nextToken();
-            	col++;
+            	row.add(st.nextToken());
+            	
             }
-            row++;
-            length++;
+			data.add(row);
 		}
 		br.close();
 		
-		
-		for(int i = 0; i< length; i++)
+		List<TupleAttribute> tupleConfig = Tuple.tupleAttr.get(this.getTableName());
+		int tupleSize = Tuple.TupleSize(this.getTableName());
+	
+		for(int i = 0; i< data.size(); i++)
 		{
-			byte [] tuple = new byte[Tuple.TupleSize()];
-			System.arraycopy(Util.rightPadChar(values[i][0], 15, Tuple.NAME_PAD).getBytes("UTF8"), 0, tuple, 0, 15);
-			System.arraycopy(Util.rightPadChar(values[i][1], 10, Tuple.NAME_PAD).getBytes("UTF8"), 0, tuple, 15, 10);
-		
+			byte [] tuple = new byte[tupleSize];
+			List<String> row = data.get(i);
 			
-			lHash.InsertTuple(tuple);
+			for (int j =0; j < row.size(); j++) {
+				TupleAttribute attr = tupleConfig.get(j);
+				String colData = Util.truncate(row.get(j), attr.getSize());
+				int colIndex = attr.startIndex(tupleConfig);
+				
+				System.arraycopy(colData.getBytes(), 0, tuple, colIndex, colData.length());
+			}
+			String keyString = new String(Tuple.readKey(getTableName(), tuple));
 			
-			
+			this.InsertTuple(tuple);				
 		}
 			
 	
 	}
 	
 	
+	public String getTableName() {
+		return tableName;
+	}
+
+	public void setTableName(String tableName) {
+		this.tableName = tableName;
+	}
+
 	public static void main(String args[] ) throws IOException, ClassNotFoundException {
 		
-		LinearHash lHash = getLinHash();
+		LinearHash lHash = getLinHash("employees");
 		
-		lHash.importData(lHash, "Employees.csX");
+		//lHash.importData("Employees.csv");
+	
+		lHash.InsertTuple("TejaswiniGMSCSE".getBytes());
 		
-		try{
-			System.out.println(new String(lHash.Search("AUGUSTINEMARCW#".getBytes())));
-			System.out.println(new String(lHash.Search("XASDFASDFASDFAS".getBytes())));
+		lHash.showLinearHash();
+		
+		lHash.Search("TejaswiniG".getBytes());
+		
+		//System.out.println("\n memory status:");
+		//getDisk().DiskStatus();
+	}
+
+	public static LinearHash getLinHash(String tableName) throws ClassNotFoundException, IOException {
+		// TODO Auto-generated method stub
+		if (store.containsKey(tableName)) {
+			return store.get(tableName);
 		}
-		catch(Exception e) {
-			System.out.println();
+		
+		if (!Tuple.tupleAttr.containsKey(tableName)) {
+			
+			System.err.println("Table Definition not found! please add table to tuple_config.xml");
+			return null;
 		}
 		
-		//System.out.println(new String(lHash.Search("ACEVEDO#JR".getBytes())));
+		return new LinearHash(tableName);
+	}
+
+	public static int countPagesInUse() {
+		// TODO Auto-generated method stub
+		int pages_used = 0;
 		
-		//showLinearHash();
+		for (String tableName :store.keySet()) {
+			for (int pg_no :store.get(tableName).getChains()) {
+				if (-1 == pg_no) continue;
+				byte firstPg [] = new byte [Page.PAGE_SIZE];
+				getDisk().readPage(firstPg, pg_no);
+				int pages_in_chain = Page.getChainLength(firstPg);
+				pages_used += pages_in_chain;
+			}
+		}
 		
-		System.out.println("\n memory status:");
-		lHash.getDisk().DiskStatus();
+		return pages_used;
 	}
 	
 
