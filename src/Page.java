@@ -3,6 +3,10 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+/**
+ * @author enigma
+ *
+ */
 public class Page {
 	
 	public final static int  PAGE_SIZE = 1024;
@@ -41,10 +45,14 @@ public class Page {
 	}
 	
 	
-	/*
+	/**
+	 * getPageLen
 	 * given a buffer (from readPage?) use the constant page offsets above to 
 	 * identify the "pagelength" bytes and return the byte array
+	 * @param byte buffer
+	 * @return returns the page size information from header
 	 */	
+
 	public static int getPageLen(byte[] buff) {
 		int [] page_len_offset = pageOffset.get(PAGE_ITEMS.PAGE_LEN);
 		byte[] pagelen_byte = new byte[page_len_offset[1]]; 
@@ -53,9 +61,12 @@ public class Page {
 		return (int) bbuf.getShort();
 	}
 
-	/*
+	/**
+	 * getHeaderLen
 	 * given a buffer (from readPage?) use the constant page offsets above to 
 	 * identify the "headerlength" bytes and return the byte array
+	 * @param byte buffer
+	 * @return returns the header size information from header
 	 */
 	public static int getHeaderLen(byte[] buff) {
 		int [] header_len_offset = pageOffset.get(PAGE_ITEMS.HEADER_LEN);
@@ -65,9 +76,11 @@ public class Page {
 		return (int) bbuf.getShort();
 	}
 
-	/*
+	/**
+	 * getPageNo
 	 * given a buffer (from readPage?) use the constant page offsets above to 
 	 * identify the "page_no" bytes and return the byte array
+	 * 
 	 */
 	public static int getPageNo(byte[] buff) {
 		int [] page_no_offset = pageOffset.get(PAGE_ITEMS.PAGE_NO);
